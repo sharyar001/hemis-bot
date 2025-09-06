@@ -1,3 +1,4 @@
+print("BOT_TOKEN:", BOT_TOKEN)
 import telebot
 import pandas as pd
 import os
@@ -33,3 +34,4 @@ def send_credentials(message):
 
 print("🤖 Bot ishga tushdi...")
 bot.infinity_polling()
+
