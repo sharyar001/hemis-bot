@@ -4,16 +4,20 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+RAILWAY_URL = os.getenv("RAILWAY_URL")  # misol: https://my-bot.up.railway.app/
+
 if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN topilmadi!")
+    raise ValueError("❌ BOT_TOKEN topilmadi! Railway yoki .env faylga qo‘shing!")
+if not RAILWAY_URL:
+    raise ValueError("❌ RAILWAY_URL topilmadi!")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Salom! Pasport seriya va raqamingizni yuboring (masalan: AA1234567)"
+        "Salom! Pasport seriya va raqamingizni yuboring (masalan: AD1234567)"
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    passport = update.message.text.strip()  # endi butun ketma-ket pasport
+    passport = update.message.text.strip()
 
     conn = sqlite3.connect("users.db")
     cur = conn.cursor()
@@ -34,4 +38,9 @@ app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-app.run_polling()
+# Webhook orqali ishlash
+app.run_webhook(
+    listen="0.0.0.0",
+    port=int(os.environ.get("PORT", 8443)),
+    webhook_url=RAILWAY_URL
+)
