@@ -20,8 +20,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Foydalanuvchi xabarini qabul qilish
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    passport = update.message.text.strip()
+    # Pasport seriya+raqamni tozalash
+    passport = update.message.text.replace(" ", "").strip().upper()
 
+    # Bazadan qidirish
     conn = sqlite3.connect("users.db")
     cur = conn.cursor()
     cur.execute("SELECT HEMIS_ID, password FROM users WHERE passport=?", (passport,))
@@ -30,9 +32,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if row:
         HEMIS_ID, password = row
-        await update.message.reply_text(f"HEMIS ID: {HEMIS_ID}\nParol: {password}")
+        await update.message.reply_text(f"✅ HEMIS ID: {HEMIS_ID}\n🔑 Parol: {password}")
     else:
-        await update.message.reply_text("Foydalanuvchi topilmadi ❌")
+        await update.message.reply_text("❌ Foydalanuvchi topilmadi")
 
 # Botni yaratish va handlerlarni qo‘shish
 app = ApplicationBuilder().token(BOT_TOKEN).build()
