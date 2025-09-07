@@ -1,49 +1,60 @@
 import os
 import sqlite3
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Environment variables
+# 🔑 Token va URL muhitdan olinadi
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-RAILWAY_URL = os.getenv("RAILWAY_URL")  # misol: https://hemis-bot-production.up.railway.app/
+RAILWAY_URL = os.getenv("RAILWAY_URL")  # masalan: https://hemis-bot-production.up.railway.app
 
 if not BOT_TOKEN:
-    raise ValueError("❌ BOT_TOKEN topilmadi!")
+    raise ValueError("❌ BOT_TOKEN topilmadi! Railway Variables bo‘limida BOT_TOKEN qo‘ying.")
 if not RAILWAY_URL:
-    raise ValueError("❌ RAILWAY_URL topilmadi!")
+    raise ValueError("❌ RAILWAY_URL topilmadi! Railway Variables bo‘limida RAILWAY_URL qo‘ying.")
 
-# /start komandasi
+# 📌 START komandasi
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Salom! Pasport seriya va raqamingizni yuboring (masalan: AD1234567)"
+        "👋 Salom! Pasport seriya va raqamingizni yuboring.\n\n"
+        "Masalan: AD1234567"
     )
 
-# Foydalanuvchi xabarini qabul qilish
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Pasport seriya+raqamni tozalash
-    passport = update.message.text.replace(" ", "").strip().upper()
+# 📌 Pasport qidirish funksiyasi
+async def search_passport(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_input = update.message.text.strip().upper()
 
-    # Bazadan qidirish
+    # Pasport formati tekshirish
+    if len(user_input) != 9 or not user_input[:2].isalpha() or not user_input[2:].isdigit():
+        await update.message.reply_text("❌ Noto‘g‘ri format! Masalan: AD1234567")
+        return
+
+    # 🔎 SQLite bazadan qidirish
     conn = sqlite3.connect("users.db")
-    cur = conn.cursor()
-    cur.execute("SELECT HEMIS_ID, password FROM users WHERE passport=?", (passport,))
-    row = cur.fetchone()
+    cursor = conn.cursor()
+    cursor.execute("SELECT hemis_id, password FROM users WHERE passport=?", (user_input,))
+    result = cursor.fetchone()
     conn.close()
 
-    if row:
-        HEMIS_ID, password = row
-        await update.message.reply_text(f"✅ HEMIS ID: {HEMIS_ID}\n🔑 Parol: {password}")
+    if result:
+        hemis_id, password = result
+        await update.message.reply_text(
+            f"✅ Topildi!\n\n🆔 HEMIS ID: {hemis_id}\n🔑 Parol: {password}"
+        )
     else:
-        await update.message.reply_text("❌ Foydalanuvchi topilmadi")
+        await update.message.reply_text("❌ Bunday pasport bazada topilmadi!")
 
-# Botni yaratish va handlerlarni qo‘shish
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+# 📌 Asosiy app
+app = Application.builder().token(BOT_TOKEN).build()
+
+# Handlerlar
 app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_passport))
 
-# Webhook orqali ishlash
-app.run_webhook(
-    listen="0.0.0.0",
-    port=int(os.environ.get("PORT", 8443)),
-    webhook_url=RAILWAY_URL
-)
+# 🚀 Webhook rejimida ishga tushirish
+if __name__ == "__main__":
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080)),
+        url_path=BOT_TOKEN,
+        webhook_url=f"{RAILWAY_URL}/{BOT_TOKEN}"
+    )
